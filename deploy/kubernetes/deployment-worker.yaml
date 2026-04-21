@@ -1,0 +1,58 @@
+# VelaFlow Enterprise — Queue Worker Deployment
+# Scaled by KEDA based on queue depth (0 → 10 pods).
+# At idle: 0 workers. At 1000 users: up to 10 workers.
+# Never competes with API pods for resources — separate scaling.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: velaflow-worker
+  namespace: velaflow
+  labels:
+    app.kubernetes.io/name: velaflow-worker
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 0 # KEDA manages scaling from 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: velaflow-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: velaflow-worker
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: velaflow-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: worker
+          image: velaflow/enterprise-worker:1.2.0
+          envFrom:
+            - configMapRef:
+                name: velaflow-config
+            - secretRef:
+                name: velaflow-secrets
+          env:
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@velaflow-redis:6379/0"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: velaflow-secrets
+                  key: REDIS_PASSWORD
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          volumeMounts:
+            - name: data
+              mountPath: /data/medallion
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: velaflow-data-pvc

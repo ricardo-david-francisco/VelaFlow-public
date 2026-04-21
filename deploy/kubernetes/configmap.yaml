@@ -1,0 +1,33 @@
+# VelaFlow Enterprise — Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: velaflow-config
+  namespace: velaflow
+  labels:
+    app.kubernetes.io/name: velaflow
+data:
+  VELAFLOW_DATA_DIR: "/data/medallion"
+  CORS_ALLOWED_ORIGINS: "https://velaflow.example.com"
+  TZ: "Europe/Lisbon"
+  WORKDAY_START_HOUR: "9"
+  WORKDAY_END_HOUR: "18"
+  DAILY_TOP_TASK_LIMIT: "5"
+  LOG_LEVEL: "INFO"
+---
+# Secrets — managed via K8s Secrets or external secret operator
+apiVersion: v1
+kind: Secret
+metadata:
+  name: velaflow-secrets
+  namespace: velaflow
+  labels:
+    app.kubernetes.io/name: velaflow
+type: Opaque
+stringData:
+  JWT_SECRET: "CHANGE-ME-in-production-use-external-secrets-operator"
+  VELAFLOW_MASTER_KEY: "CHANGE-ME-generate-via-FieldEncryptor.generate_master_key()"
+  REDIS_PASSWORD: "CHANGE-ME-generate-secure-redis-password"
+  # WARNING: Replace ALL placeholder values above before production deployment.
+  # Recommended: Use External Secrets Operator to inject from HashiCorp Vault,
+  # AWS Secrets Manager, or Azure Key Vault instead of storing secrets in Git.

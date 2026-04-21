@@ -1,0 +1,169 @@
+{
+    "name": "VelaFlow — Overdue Alert",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 8,12,16,20 * * *"
+                        }
+                    ]
+                }
+            },
+            "id": "trigger-overdue",
+            "name": "Every 4h (8AM-8PM)",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                220,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "command": "cd /opt/velaflow && .venv/bin/python -m brain alerts --stdout 2>&1"
+            },
+            "id": "check-overdue",
+            "name": "Check Overdue Tasks",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                440,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": false,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "has-output",
+                            "leftValue": "={{ $json.stdout }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "string",
+                                "operation": "isNotEmpty"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "id": "has-overdue",
+            "name": "Any Overdue?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                660,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://api.callmebot.com/whatsapp.php",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "phone",
+                            "value": "={{ $env.CALLMEBOT_PHONE }}"
+                        },
+                        {
+                            "name": "apikey",
+                            "value": "={{ $env.CALLMEBOT_API_KEY }}"
+                        },
+                        {
+                            "name": "text",
+                            "value": "={{ $('Check Overdue Tasks').item.json.stdout.substring(0, 3900) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "id": "whatsapp-overdue",
+            "name": "WhatsApp Alert",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                880,
+                200
+            ],
+            "onError": "continueRegularOutput"
+        },
+        {
+            "parameters": {},
+            "id": "no-op-overdue",
+            "name": "No Overdue — Skip",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                880,
+                400
+            ]
+        }
+    ],
+    "connections": {
+        "Every 4h (8AM-8PM)": {
+            "main": [
+                [
+                    {
+                        "node": "Check Overdue Tasks",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Overdue Tasks": {
+            "main": [
+                [
+                    {
+                        "node": "Any Overdue?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Any Overdue?": {
+            "main": [
+                [
+                    {
+                        "node": "WhatsApp Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "No Overdue — Skip",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "timezone": "Europe/Lisbon"
+    },
+    "tags": [
+        {
+            "name": "velaflow"
+        },
+        {
+            "name": "alerts"
+        }
+    ],
+    "active": false
+}

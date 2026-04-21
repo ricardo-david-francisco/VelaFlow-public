@@ -1,0 +1,28 @@
+# VelaFlow Enterprise — Queue Worker Container
+# Processes async pipeline and digest tasks from the queue
+
+FROM python:3.11-slim AS base
+
+LABEL maintainer="VelaFlow Contributors"
+LABEL description="VelaFlow Enterprise Worker — Async pipeline processor"
+
+RUN groupadd -r velaflow && useradd -r -g velaflow -d /app -s /sbin/nologin velaflow
+
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml requirements.txt ./
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src/
+COPY prompts/ ./prompts/
+
+RUN mkdir -p /app/data/medallion && chown -R velaflow:velaflow /app
+
+USER velaflow
+
+CMD ["python", "-m", "brain.queue.worker"]

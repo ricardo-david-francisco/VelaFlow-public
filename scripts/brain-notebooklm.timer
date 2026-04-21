@@ -1,0 +1,11 @@
+[Unit]
+Description=VelaFlow — NotebookLM weekly sync (Sunday 21:00)
+
+[Timer]
+# Full rebuild every Sunday at 21:00 — keeps notebook in sync with Notion
+OnCalendar=Sun *-*-* 21:00:00
+Persistent=true
+Unit=brain-notebooklm.service
+
+[Install]
+WantedBy=timers.target

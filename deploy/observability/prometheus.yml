@@ -1,0 +1,27 @@
+# Prometheus scrape config for the VelaFlow local demo stack.
+#
+# The VelaFlow API exposes /metrics in Prometheus text format. When run
+# directly on the host (uvicorn ... --port 8765), host.docker.internal
+# routes back to the host from inside this container.
+
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: velaflow-demo
+
+scrape_configs:
+  - job_name: velaflow
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - host.docker.internal:8765
+        labels:
+          service: velaflow-api
+          env: demo
+
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090

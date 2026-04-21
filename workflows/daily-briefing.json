@@ -1,0 +1,336 @@
+﻿{
+    "name": "VelaFlow — Daily Briefing",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 7 * * 1-5"
+                        }
+                    ]
+                }
+            },
+            "id": "trigger-daily",
+            "name": "Mon-Fri 7:00 AM",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                220,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "command": "cd /opt/velaflow && .venv/bin/python -m brain daily --stdout 2>&1"
+            },
+            "id": "run-daily-nollm",
+            "name": "Generate Raw Digest",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                440,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://api.groq.com/openai/v1/chat/completions",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer {{ $env.GROQ_API_KEY }}"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a productivity coach. Rewrite this daily briefing to be scannable, actionable, and structured. Keep all task names and data exact. Use clear sections. Highlight the top 3 things to focus on. Keep it under 500 words.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.stdout) }}\n    }\n  ],\n  \"temperature\": 0.4,\n  \"max_tokens\": 2500\n}",
+                "options": {
+                    "timeout": 60000
+                }
+            },
+            "id": "groq-daily",
+            "name": "Groq AI Polish",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                660,
+                300
+            ],
+            "onError": "continueRegularOutput"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "has-ai-response",
+                            "leftValue": "={{ $json.choices }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "exists",
+                                "operation": "exists"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "id": "check-groq",
+            "name": "AI Succeeded?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                880,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "set-body",
+                            "name": "body",
+                            "value": "={{ $json.choices[0].message.content }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "set-subject",
+                            "name": "subject",
+                            "value": "=ðŸ§  Daily Briefing â€” {{ new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'}) }}",
+                            "type": "string"
+                        }
+                    ]
+                }
+            },
+            "id": "format-ai",
+            "name": "Use AI Output",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                1100,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "set-body-raw",
+                            "name": "body",
+                            "value": "={{ $('Generate Raw Digest').item.json.stdout }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "set-subject-raw",
+                            "name": "subject",
+                            "value": "=ðŸ§  Daily Briefing â€” {{ new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'}) }}",
+                            "type": "string"
+                        }
+                    ]
+                }
+            },
+            "id": "format-raw",
+            "name": "Use Raw Output",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                1100,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "merge",
+                "mergeByFields": {
+                    "values": []
+                },
+                "options": {}
+            },
+            "id": "merge-daily",
+            "name": "Merge",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                1320,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "={{ $env.DIGEST_FROM_EMAIL }}",
+                "toEmail": "={{ $env.DIGEST_TO_EMAIL }}",
+                "subject": "={{ $json.subject }}",
+                "text": "={{ $json.body }}",
+                "options": {}
+            },
+            "id": "send-email-daily",
+            "name": "Send Email",
+            "type": "n8n-nodes-base.gmail",
+            "typeVersion": 2.1,
+            "position": [
+                1540,
+                200
+            ],
+            "credentials": {
+                "gmailOAuth2": {
+                    "id": "gmail-credentials",
+                    "name": "Gmail OAuth2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "url": "https://api.callmebot.com/whatsapp.php",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "phone",
+                            "value": "={{ $env.CALLMEBOT_PHONE }}"
+                        },
+                        {
+                            "name": "apikey",
+                            "value": "={{ $env.CALLMEBOT_API_KEY }}"
+                        },
+                        {
+                            "name": "text",
+                            "value": "={{ $json.body.substring(0, 3900) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "id": "whatsapp-daily",
+            "name": "WhatsApp User",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1540,
+                400
+            ],
+            "onError": "continueRegularOutput"
+        }
+    ],
+    "connections": {
+        "Mon-Fri 7:00 AM": {
+            "main": [
+                [
+                    {
+                        "node": "Generate Raw Digest",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Generate Raw Digest": {
+            "main": [
+                [
+                    {
+                        "node": "Groq AI Polish",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Groq AI Polish": {
+            "main": [
+                [
+                    {
+                        "node": "AI Succeeded?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Succeeded?": {
+            "main": [
+                [
+                    {
+                        "node": "Use AI Output",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Use Raw Output",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Use AI Output": {
+            "main": [
+                [
+                    {
+                        "node": "Merge",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Use Raw Output": {
+            "main": [
+                [
+                    {
+                        "node": "Merge",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge": {
+            "main": [
+                [
+                    {
+                        "node": "Send Email",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "WhatsApp User",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "timezone": "Europe/Lisbon"
+    },
+    "tags": [
+        {
+            "name": "velaflow"
+        },
+        {
+            "name": "daily"
+        }
+    ],
+    "active": false
+}

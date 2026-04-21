@@ -1,0 +1,255 @@
+# VelaFlow Enterprise — KEDA ScaledObject
+# Auto-scales worker pods based on Redis queue depth.
+#
+# Scaling strategy (Oracle Cloud Always-Free: 4 OCPUs, 24 GB RAM):
+#   1 user   → 0 workers (idle), 1 API pod
+#   50 users → 2-3 workers (queue depth ~10), 2 API pods (HPA)
+#   1000 users → 10 workers (max burst), 4 API pods (HPA max)
+#
+# When pipeline run requests accumulate in the queue:
+# - KEDA monitors the Redis list length
+# - Scales workers from 0 → maxReplicaCount based on queue depth
+# - Scales to 0 when the queue is empty (cost optimization)
+# - Cooldown prevents flapping on bursty workloads
+#
+# For premium tier (local LLM), a separate ScaledObject targets
+# the premium worker deployment with GPU/CPU node affinity.
+#
+# For Oracle Cloud without GPU:
+#   - Premium pods run Ollama on ARM CPU (qwen2:1.5b ~5 tok/s)
+#   - Remove nvidia.com/gpu toleration and nodeSelector
+#   - Set PREMIUM_LLM_MODEL=qwen2:1.5b (fits 4 GB allocation)
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: velaflow-worker-scaler
+  namespace: velaflow
+  labels:
+    app.kubernetes.io/name: velaflow-worker
+spec:
+  scaleTargetRef:
+    name: velaflow-worker
+  pollingInterval: 15
+  cooldownPeriod: 60
+  minReplicaCount: 0
+  maxReplicaCount: 10
+  triggers:
+    - type: redis
+      metadata:
+        address: velaflow-redis.velaflow.svc.cluster.local:6379
+        listName: velaflow:pipeline:queue
+        listLength: "3"
+        # R15-M2: TLS required for KEDA↔Redis. Set to "false" only for dev clusters.
+        enableTLS: "true"
+        databaseIndex: "0"
+---
+# Premium tier worker scaler — scales local LLM pods
+# Only activates when premium LLM requests are queued
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: velaflow-premium-scaler
+  namespace: velaflow
+  labels:
+    app.kubernetes.io/name: velaflow-premium
+spec:
+  scaleTargetRef:
+    name: velaflow-premium
+  pollingInterval: 30
+  cooldownPeriod: 300
+  minReplicaCount: 0
+  maxReplicaCount: 3
+  triggers:
+    - type: redis
+      metadata:
+        address: velaflow-redis.velaflow.svc.cluster.local:6379
+        listName: velaflow:premium:llm:queue
+        listLength: "1"
+        # R15-M2: TLS required for KEDA↔Redis.
+        enableTLS: "true"
+        databaseIndex: "0"
+  advanced:
+    restoreToOriginalReplicaCount: true
+---
+# Premium tier deployment — pods with GPU/high-memory for local LLM
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: velaflow-premium
+  namespace: velaflow
+  labels:
+    app.kubernetes.io/name: velaflow-premium
+    app.kubernetes.io/component: premium-llm
+spec:
+  replicas: 0  # KEDA manages scaling from 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: velaflow-premium
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: velaflow-premium
+        app.kubernetes.io/component: premium-llm
+    spec:
+      serviceAccountName: velaflow-sa
+      # R15-M6: pod-level hardening
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      nodeSelector:
+        velaflow.io/tier: premium
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: premium
+          image: velaflow/enterprise-premium:1.2.0
+          # R15-M6: container-level hardening
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - containerPort: 8000
+              name: http
+            - containerPort: 11434
+              name: ollama
+          env:
+            - name: PREMIUM_LLM_MODEL
+              value: "qwen2:1.5b"
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@velaflow-redis:6379/0"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: velaflow-secrets
+                  key: REDIS_PASSWORD
+          envFrom:
+            - configMapRef:
+                name: velaflow-config
+            - secretRef:
+                name: velaflow-secrets
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "4Gi"
+            limits:
+              cpu: "4000m"
+              memory: "8Gi"
+              # nvidia.com/gpu: "1"  # Uncomment for GPU nodes
+          volumeMounts:
+            - name: data
+              mountPath: /data/medallion
+            - name: ollama-models
+              mountPath: /root/.ollama
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: velaflow-data-pvc
+        - name: ollama-models
+          persistentVolumeClaim:
+            claimName: velaflow-ollama-pvc
+---
+# RAG worker scaler — scales RAG query/ingest pods
+# Activates when RAG requests accumulate in the queue.
+# RAG workers need DuckDB VSS access and moderate memory for
+# embedding generation and vector search.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: velaflow-rag-scaler
+  namespace: velaflow
+  labels:
+    app.kubernetes.io/name: velaflow-rag
+spec:
+  scaleTargetRef:
+    name: velaflow-rag
+  pollingInterval: 15
+  cooldownPeriod: 120
+  minReplicaCount: 0
+  maxReplicaCount: 5
+  triggers:
+    - type: redis
+      metadata:
+        address: velaflow-redis.velaflow.svc.cluster.local:6379
+        listName: velaflow:rag:queue
+        listLength: "2"
+        # R15-M2: TLS required for KEDA↔Redis.
+        enableTLS: "true"
+        databaseIndex: "0"
+  advanced:
+    restoreToOriginalReplicaCount: true
+---
+# RAG worker deployment — pods with DuckDB VSS for vector search
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: velaflow-rag
+  namespace: velaflow
+  labels:
+    app.kubernetes.io/name: velaflow-rag
+    app.kubernetes.io/component: rag-worker
+spec:
+  replicas: 0  # KEDA manages scaling from 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: velaflow-rag
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: velaflow-rag
+        app.kubernetes.io/component: rag-worker
+    spec:
+      serviceAccountName: velaflow-sa
+      # R15-M6: pod-level hardening
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: rag
+          image: velaflow/enterprise-rag:1.2.0
+          # R15-M6: container-level hardening
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: RAG_DUCKDB_PATH
+              value: "/data/medallion/rag.duckdb"
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@velaflow-redis:6379/0"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: velaflow-secrets
+                  key: REDIS_PASSWORD
+          envFrom:
+            - configMapRef:
+                name: velaflow-config
+            - secretRef:
+                name: velaflow-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "2Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          volumeMounts:
+            - name: data
+              mountPath: /data/medallion
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: velaflow-data-pvc

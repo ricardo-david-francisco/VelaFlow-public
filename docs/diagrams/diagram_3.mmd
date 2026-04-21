@@ -1,0 +1,30 @@
+flowchart TD
+    START["polish_digest() called"]
+
+    START --> PROXY{"LiteLLM Proxy\nconfigured?"}
+    PROXY -->|"Yes"| P_CALL["Call proxy\n(budget-capped token)"]
+    P_CALL --> P_OK{"Success?"}
+    P_OK -->|"Yes"| DONE["Return polished text"]
+    P_OK -->|"No"| DEMO{"demo_mode?"}
+    DEMO -->|"Yes"| RAW["Return raw text"]
+    DEMO -->|"No"| G_CHECK
+
+    PROXY -->|"No"| G_CHECK{"Google AI key?"}
+    G_CHECK -->|"Yes"| G_PRO["Gemini 2.5 Pro"]
+    G_PRO --> G_PRO_OK{"OK?"}
+    G_PRO_OK -->|"Yes"| DONE
+    G_PRO_OK -->|"No (429)"| G_FLASH["Gemini 2.5 Flash"]
+    G_FLASH --> G_FLASH_OK{"OK?"}
+    G_FLASH_OK -->|"Yes"| DONE
+    G_FLASH_OK -->|"No"| G_LITE["Gemini Flash-Lite"]
+    G_LITE --> G_LITE_OK{"OK?"}
+    G_LITE_OK -->|"Yes"| DONE
+    G_LITE_OK -->|"No"| GROQ_CHECK
+
+    G_CHECK -->|"No"| GROQ_CHECK{"Groq key?"}
+    GROQ_CHECK -->|"Yes"| GROQ["Groq llama-3.3-70b"]
+    GROQ --> GROQ_OK{"OK?"}
+    GROQ_OK -->|"Yes"| DONE
+    GROQ_OK -->|"No"| RAW
+
+    GROQ_CHECK -->|"No"| RAW

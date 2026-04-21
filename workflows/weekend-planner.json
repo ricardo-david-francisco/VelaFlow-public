@@ -1,0 +1,375 @@
+﻿{
+    "name": "VelaFlow — Weekend Planner",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 17 * * 5"
+                        }
+                    ]
+                }
+            },
+            "id": "trigger-weekend",
+            "name": "Friday 5:00 PM",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                220,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "command": "cd /opt/velaflow && .venv/bin/python -m brain weekend --stdout 2>&1"
+            },
+            "id": "run-weekend-nollm",
+            "name": "Generate Raw Plan",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                440,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://api.groq.com/openai/v1/chat/completions",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer {{ $env.GROQ_API_KEY }}"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a weekend planning assistant. Rewrite this weekend plan to be realistic and well-structured. Protect personal commitments. Schedule demanding tasks in the morning when energy is highest. Add 30-min buffers between tasks. Keep it under 400 words.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.stdout) }}\n    }\n  ],\n  \"temperature\": 0.4,\n  \"max_tokens\": 2000\n}",
+                "options": {
+                    "timeout": 60000
+                }
+            },
+            "id": "groq-weekend",
+            "name": "Groq AI Polish",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                660,
+                300
+            ],
+            "onError": "continueRegularOutput"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "has-ai-weekend",
+                            "leftValue": "={{ $json.choices }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "exists",
+                                "operation": "exists"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "id": "check-groq-weekend",
+            "name": "AI Succeeded?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                880,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "set-body-wk",
+                            "name": "body",
+                            "value": "={{ $json.choices[0].message.content }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "set-subject-wk",
+                            "name": "subject",
+                            "value": "=ðŸ—“ï¸ Weekend Plan â€” {{ new Date().toLocaleDateString('en-US', {month:'short', day:'numeric'}) }}",
+                            "type": "string"
+                        }
+                    ]
+                }
+            },
+            "id": "format-ai-wk",
+            "name": "Use AI Output",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                1100,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "set-body-raw-wk",
+                            "name": "body",
+                            "value": "={{ $('Generate Raw Plan').item.json.stdout }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "set-subject-raw-wk",
+                            "name": "subject",
+                            "value": "=ðŸ—“ï¸ Weekend Plan â€” {{ new Date().toLocaleDateString('en-US', {month:'short', day:'numeric'}) }}",
+                            "type": "string"
+                        }
+                    ]
+                }
+            },
+            "id": "format-raw-wk",
+            "name": "Use Raw Output",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                1100,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "merge",
+                "mergeByFields": {
+                    "values": []
+                },
+                "options": {}
+            },
+            "id": "merge-weekend",
+            "name": "Merge",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                1320,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "={{ $env.DIGEST_FROM_EMAIL }}",
+                "toEmail": "={{ $env.DIGEST_TO_EMAIL }}",
+                "subject": "={{ $json.subject }}",
+                "text": "={{ $json.body }}",
+                "options": {}
+            },
+            "id": "send-email-wk",
+            "name": "Send Email",
+            "type": "n8n-nodes-base.gmail",
+            "typeVersion": 2.1,
+            "position": [
+                1540,
+                100
+            ],
+            "credentials": {
+                "gmailOAuth2": {
+                    "id": "gmail-credentials",
+                    "name": "Gmail OAuth2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "url": "https://api.callmebot.com/whatsapp.php",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "phone",
+                            "value": "={{ $env.CALLMEBOT_PHONE }}"
+                        },
+                        {
+                            "name": "apikey",
+                            "value": "={{ $env.CALLMEBOT_API_KEY }}"
+                        },
+                        {
+                            "name": "text",
+                            "value": "={{ $json.body.substring(0, 3900) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "id": "whatsapp-user-wk",
+            "name": "WhatsApp User",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1540,
+                300
+            ],
+            "onError": "continueRegularOutput"
+        },
+        {
+            "parameters": {
+                "url": "https://api.callmebot.com/whatsapp.php",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "phone",
+                            "value": "={{ $env.CALLMEBOT_SECONDARY_PHONE }}"
+                        },
+                        {
+                            "name": "apikey",
+                            "value": "={{ $env.CALLMEBOT_SECONDARY_API_KEY }}"
+                        },
+                        {
+                            "name": "text",
+                            "value": "={{ $json.body.substring(0, 3900) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "id": "whatsapp-secondary-wk",
+            "name": "WhatsApp Secondary",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1540,
+                500
+            ],
+            "onError": "continueRegularOutput"
+        }
+    ],
+    "connections": {
+        "Friday 5:00 PM": {
+            "main": [
+                [
+                    {
+                        "node": "Generate Raw Plan",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Generate Raw Plan": {
+            "main": [
+                [
+                    {
+                        "node": "Groq AI Polish",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Groq AI Polish": {
+            "main": [
+                [
+                    {
+                        "node": "AI Succeeded?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Succeeded?": {
+            "main": [
+                [
+                    {
+                        "node": "Use AI Output",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Use Raw Output",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Use AI Output": {
+            "main": [
+                [
+                    {
+                        "node": "Merge",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Use Raw Output": {
+            "main": [
+                [
+                    {
+                        "node": "Merge",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge": {
+            "main": [
+                [
+                    {
+                        "node": "Send Email",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "WhatsApp User",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "WhatsApp Secondary",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "timezone": "Europe/Lisbon"
+    },
+    "tags": [
+        {
+            "name": "velaflow"
+        },
+        {
+            "name": "weekend"
+        }
+    ],
+    "active": false
+}

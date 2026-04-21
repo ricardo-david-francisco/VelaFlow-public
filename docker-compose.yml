@@ -1,0 +1,220 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: velaflow-n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - GENERIC_TIMEZONE=${TZ:-Europe/Lisbon}
+      - TZ=${TZ:-Europe/Lisbon}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?Set N8N_ENCRYPTION_KEY in .env}
+      # Python engine path (called via Execute Command node)
+      - BRAIN_VENV=/opt/velaflow/.venv/bin/python
+      - BRAIN_PATH=/opt/velaflow
+      # AI / LLM (used by n8n workflow Groq HTTP nodes)
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      # Email delivery (used by n8n Gmail nodes)
+      - DIGEST_FROM_EMAIL=${DIGEST_FROM_EMAIL:-}
+      - DIGEST_TO_EMAIL=${DIGEST_TO_EMAIL:-}
+      # CallMeBot WhatsApp
+      - CALLMEBOT_PHONE=${CALLMEBOT_PHONE:-}
+      - CALLMEBOT_API_KEY=${CALLMEBOT_API_KEY:-}
+      - CALLMEBOT_SECONDARY_PHONE=${CALLMEBOT_SECONDARY_PHONE:-}
+      - CALLMEBOT_SECONDARY_API_KEY=${CALLMEBOT_SECONDARY_API_KEY:-}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - /opt/velaflow/src:/opt/velaflow/src:ro
+      - /opt/velaflow/scripts:/opt/velaflow/scripts:ro
+      - /opt/velaflow/.venv:/opt/velaflow/.venv:ro
+    user: "1000:1000"
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+          cpus: "1.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ── Enterprise API Server ────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile
+    container_name: velaflow-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    environment:
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - VELAFLOW_MASTER_KEY=${VELAFLOW_MASTER_KEY:?Set VELAFLOW_MASTER_KEY in .env}
+      - VELAFLOW_DATA_DIR=/opt/velaflow/data/medallion
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@redis:6379/0
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      - TODOIST_API_TOKEN=${TODOIST_API_TOKEN:-}
+      - NOTION_API_TOKEN=${NOTION_API_TOKEN:-}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-}
+      - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID:?Set GOOGLE_OAUTH_CLIENT_ID in .env}
+      - GOOGLE_OAUTH_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      - VELAFLOW_OWNER_EMAIL=${VELAFLOW_OWNER_EMAIL:?Set VELAFLOW_OWNER_EMAIL in .env}
+      - VELAFLOW_BAN_PERMANENT=${VELAFLOW_BAN_PERMANENT:-false}
+      - TZ=${TZ:-Europe/Lisbon}
+    volumes:
+      - velaflow_data:/opt/velaflow/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "1.0"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ── Queue Worker ─────────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.worker
+    container_name: velaflow-worker
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      - VELAFLOW_DATA_DIR=/opt/velaflow/data/medallion
+      - VELAFLOW_MASTER_KEY=${VELAFLOW_MASTER_KEY:?Set VELAFLOW_MASTER_KEY in .env}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@redis:6379/0
+      - TODOIST_API_TOKEN=${TODOIST_API_TOKEN:-}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-}
+      - TZ=${TZ:-Europe/Lisbon}
+    volumes:
+      - velaflow_data:/opt/velaflow/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+          cpus: "1.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os, sys; sys.exit(0 if os.path.exists('/tmp/worker_healthy') else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ── Redis ────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: velaflow-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save 60 1000 --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$REDIS_PASSWORD redis-cli ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── OAuth2 Proxy (n8n authentication) ───────────────────────────
+  # Protects n8n with Google OAuth2. Only authenticated Google users
+  # can access the n8n GUI. This replaces n8n's built-in auth.
+  # Access: https://n8n.yourdomain.com → OAuth2 Proxy → n8n:5678
+  n8n-auth-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.9.0
+    container_name: velaflow-n8n-auth-proxy
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4180:4180"
+    environment:
+      - OAUTH2_PROXY_PROVIDER=google
+      - OAUTH2_PROXY_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID:?Set GOOGLE_OAUTH_CLIENT_ID in .env}
+      - OAUTH2_PROXY_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET:?Set GOOGLE_OAUTH_CLIENT_SECRET in .env}
+      - OAUTH2_PROXY_REDIRECT_URL=${N8N_OAUTH_REDIRECT_URL:-http://localhost:4180/oauth2/callback}
+      - OAUTH2_PROXY_COOKIE_SECRET=${OAUTH2_PROXY_COOKIE_SECRET:?Set OAUTH2_PROXY_COOKIE_SECRET in .env (use: python -c 'import secrets; print(secrets.token_urlsafe(32))')}
+      - OAUTH2_PROXY_COOKIE_SECURE=true
+      - OAUTH2_PROXY_COOKIE_HTTPONLY=true
+      - OAUTH2_PROXY_COOKIE_SAMESITE=lax
+      # Restrict to specific email domains or addresses
+      - OAUTH2_PROXY_EMAIL_DOMAINS=${OAUTH2_PROXY_EMAIL_DOMAINS:?Set OAUTH2_PROXY_EMAIL_DOMAINS in .env (e.g. your-domain.com)}
+      - OAUTH2_PROXY_AUTHENTICATED_EMAILS_FILE=${OAUTH2_PROXY_EMAILS_FILE:-}
+      # Upstream is the n8n service (internal Docker network)
+      - OAUTH2_PROXY_UPSTREAMS=http://n8n:5678
+      - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
+      - OAUTH2_PROXY_PASS_HOST_HEADER=true
+      - OAUTH2_PROXY_SET_XAUTHREQUEST=true
+      - OAUTH2_PROXY_REVERSE_PROXY=true
+      # Session timeout (re-auth every 8 hours)
+      - OAUTH2_PROXY_COOKIE_EXPIRE=8h
+      - OAUTH2_PROXY_SESSION_STORE_TYPE=cookie
+    depends_on:
+      n8n:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4180/ping || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  n8n_data:
+    driver: local
+  velaflow_data:
+    driver: local
+  redis_data:
+    driver: local

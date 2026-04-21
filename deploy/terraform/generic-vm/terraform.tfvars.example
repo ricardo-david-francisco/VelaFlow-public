@@ -1,0 +1,10 @@
+host                 = "203.0.113.42"
+ssh_user             = "ubuntu"
+ssh_port             = 22
+ssh_private_key_path = "~/.ssh/velaflow_ed25519"
+
+velaflow_image = "ghcr.io/ricardo-david-francisco/velaflow:latest"
+data_dir       = "/var/lib/velaflow"
+api_port       = 8765
+public_port    = 443
+admin_cidr     = "0.0.0.0/0"

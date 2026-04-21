@@ -1,0 +1,29 @@
+# VelaFlow Enterprise — Ingress
+# Routes external traffic to the API service
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: velaflow-ingress
+  namespace: velaflow
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.velaflow.example.com
+      secretName: velaflow-tls
+  rules:
+    - host: api.velaflow.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: velaflow-api
+                port:
+                  number: 80

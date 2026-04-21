@@ -1,0 +1,64 @@
+flowchart TD
+    INPUT["Task from Todoist"]
+
+    INPUT --> DUE{"Due date?"}
+    DUE -->|"Overdue"| OV["+min(days, 7) × 20\nMax +140"]
+    DUE -->|"Today"| TD["+25"]
+    DUE -->|"Tomorrow"| TM["+16"]
+    DUE -->|"2 days"| D2["+8"]
+    DUE -->|"3 days"| D3["+4"]
+    DUE -->|"4+ or none"| D0["+0"]
+
+    OV --> PRIO
+    TD --> PRIO
+    TM --> PRIO
+    D2 --> PRIO
+    D3 --> PRIO
+    D0 --> PRIO
+
+    PRIO{"Priority?"}
+    PRIO -->|"P1 (urgent)"| P1["+18"]
+    PRIO -->|"P2 (high)"| P2["+10"]
+    PRIO -->|"P3 (medium)"| P3["+4"]
+    PRIO -->|"P4 (none)"| P4["+0"]
+
+    P1 --> LBL
+    P2 --> LBL
+    P3 --> LBL
+    P4 --> LBL
+
+    LBL{"Labels?"}
+    LBL -->|"@focus"| F["+14"]
+    LBL -->|"@weekend\n(weekend mode)"| W["+10"]
+    LBL -->|"Neither"| N0["+0"]
+
+    F --> DUR
+    W --> DUR
+    N0 --> DUR
+
+    DUR{"Duration?"}
+    DUR -->|"≤ 30 min"| QW["+4 (quick-win)"]
+    DUR -->|"≥ 120 min"| LG["−6 (complex)"]
+    DUR -->|"Other"| M0["+0"]
+
+    QW --> SEC
+    LG --> SEC
+    M0 --> SEC
+
+    SEC{"Section?"}
+    SEC -->|"Urgent/Today"| SU["+12"]
+    SEC -->|"Doing"| SD["+10"]
+    SEC -->|"High"| SH["+6"]
+    SEC -->|"Blocked"| SB["−20"]
+    SEC -->|"Rejected"| SR["−30"]
+
+    SU --> BL
+    SD --> BL
+    SH --> BL
+    SB --> BL
+    SR --> BL
+
+    BL{"No date AND\nno @focus?"}
+    BL -->|"Yes"| BP["−4 (backlog)"]
+    BL -->|"No"| FINAL["Final Score"]
+    BP --> FINAL

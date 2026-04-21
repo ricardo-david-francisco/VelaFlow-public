@@ -1,0 +1,39 @@
+[Unit]
+Description=VelaFlow â€” Notion â†’ NotebookLM weekly sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=@@BRAIN_USER@@
+Group=@@BRAIN_USER@@
+WorkingDirectory=@@BRAIN_HOME@@
+@@ENV_FILE_LINE@@
+
+ExecStart=@@VENV@@/bin/brain notebooklm-sync
+
+# notebooklm-py stores Google auth cookies in ~/.notebooklm (default).
+# Override with NOTEBOOKLM_HOME if the service user's home differs.
+# Environment=NOTEBOOKLM_HOME=/var/lib/brain/.notebooklm
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=/var/log/brain /run/brain @@BRAIN_HOME@@
+CapabilityBoundingSet=
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=brain-notebooklm
+
+[Install]
+WantedBy=multi-user.target
