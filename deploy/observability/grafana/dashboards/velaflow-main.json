@@ -1,0 +1,412 @@
+{
+    "annotations": {
+        "list": []
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+        {
+            "type": "stat",
+            "title": "Service Up",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "targets": [
+                {
+                    "expr": "velaflow_up",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "DOWN",
+                                    "color": "red"
+                                },
+                                "1": {
+                                    "text": "UP",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    }
+                }
+            },
+            "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "value_and_name"
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "velaflow-prometheus"
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Uptime (s)",
+            "gridPos": {
+                "x": 4,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "targets": [
+                {
+                    "expr": "velaflow_uptime_seconds",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s"
+                }
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "velaflow-prometheus"
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Active Tenants",
+            "gridPos": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "targets": [
+                {
+                    "expr": "velaflow_active_tenants",
+                    "refId": "A"
+                }
+            ],
+            "datasource": {
+                "type": "prometheus",
+                "uid": "velaflow-prometheus"
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Queue Depth",
+            "gridPos": {
+                "x": 12,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "targets": [
+                {
+                    "expr": "velaflow_queue_depth",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 10
+                            },
+                            {
+                                "color": "red",
+                                "value": 100
+                            }
+                        ]
+                    }
+                }
+            },
+            "options": {
+                "colorMode": "background"
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "velaflow-prometheus"
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Worker Count (KEDA)",
+            "gridPos": {
+                "x": 16,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "targets": [
+                {
+                    "expr": "velaflow_worker_count",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "blue",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    }
+                }
+            },
+            "options": {
+                "colorMode": "background"
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "velaflow-prometheus"
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Error Rate (5m)",
+            "gridPos": {
+                "x": 20,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "targets": [
+                {
+                    "expr": "rate(velaflow_http_requests_error_total[5m]) / clamp_min(rate(velaflow_http_requests_total[5m]), 0.001)",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percentunit",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 0.01
+                            },
+                            {
+                                "color": "red",
+                                "value": 0.05
+                            }
+                        ]
+                    }
+                }
+            },
+            "options": {
+                "colorMode": "background"
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "velaflow-prometheus"
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "HTTP Request Rate (req/s)",
+            "gridPos": {
+                "x": 0,
+                "y": 4,
+                "w": 12,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "expr": "rate(velaflow_http_requests_total[1m])",
+                    "refId": "A",
+                    "legendFormat": "total"
+                },
+                {
+                    "expr": "rate(velaflow_http_requests_error_total[1m])",
+                    "refId": "B",
+                    "legendFormat": "errors (4xx/5xx)"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "custom": {
+                        "drawStyle": "line",
+                        "lineInterpolation": "smooth",
+                        "fillOpacity": 15
+                    }
+                }
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "velaflow-prometheus"
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Autoscaling — Queue Depth vs Worker Count",
+            "gridPos": {
+                "x": 12,
+                "y": 4,
+                "w": 12,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "expr": "velaflow_queue_depth",
+                    "refId": "A",
+                    "legendFormat": "queue depth"
+                },
+                {
+                    "expr": "velaflow_worker_count",
+                    "refId": "B",
+                    "legendFormat": "workers"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "drawStyle": "line",
+                        "lineInterpolation": "stepAfter",
+                        "fillOpacity": 15
+                    }
+                }
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "velaflow-prometheus"
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Pipeline Runs / min",
+            "gridPos": {
+                "x": 0,
+                "y": 12,
+                "w": 8,
+                "h": 7
+            },
+            "targets": [
+                {
+                    "expr": "rate(velaflow_pipeline_runs_total[5m]) * 60",
+                    "refId": "A",
+                    "legendFormat": "pipeline runs"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short"
+                }
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "velaflow-prometheus"
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "LLM Calls / min",
+            "gridPos": {
+                "x": 8,
+                "y": 12,
+                "w": 8,
+                "h": 7
+            },
+            "targets": [
+                {
+                    "expr": "rate(velaflow_llm_calls_total[5m]) * 60",
+                    "refId": "A",
+                    "legendFormat": "LLM calls"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short"
+                }
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "velaflow-prometheus"
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Tasks Processed vs Failed (cumulative)",
+            "gridPos": {
+                "x": 16,
+                "y": 12,
+                "w": 8,
+                "h": 7
+            },
+            "targets": [
+                {
+                    "expr": "velaflow_tasks_processed_total",
+                    "refId": "A",
+                    "legendFormat": "processed"
+                },
+                {
+                    "expr": "velaflow_tasks_failed_total",
+                    "refId": "B",
+                    "legendFormat": "failed"
+                }
+            ],
+            "datasource": {
+                "type": "prometheus",
+                "uid": "velaflow-prometheus"
+            }
+        }
+    ],
+    "refresh": "5s",
+    "schemaVersion": 39,
+    "tags": [
+        "velaflow",
+        "demo"
+    ],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-15m",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "VelaFlow — Live Platform",
+    "uid": "velaflow-main",
+    "version": 1,
+    "weekStart": ""
+}

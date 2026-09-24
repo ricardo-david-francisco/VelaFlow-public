@@ -1,0 +1,81 @@
+# VelaFlow — Local Observability Demo Stack
+#
+# Purpose: bring up Prometheus + Grafana locally against a running VelaFlow
+# API so you can observe live auto-scaling, queue depth, and request
+# throughput on a developer workstation, without needing a cloud cluster.
+#
+# Usage (from the repository root):
+#   # 1. Start VelaFlow API locally so /metrics is reachable
+#   python -m uvicorn brain.api.main:app --host 0.0.0.0 --port 8765
+#
+#   # 2. Bring up the observability stack
+#   docker compose -f deploy/observability/docker-compose.yml up -d
+#
+#   # 3. Browse:
+#   #   - Grafana:    http://localhost:3000  (admin / admin — change on first login)
+#   #   - Prometheus: http://localhost:9090
+#
+# On Windows / WSL2 the ``host.docker.internal`` DNS name inside the
+# containers routes back to the host. On Linux Docker, the Compose file
+# below already includes ``extra_hosts`` to make the same name work.
+
+version: "3.9"
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: velaflow-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    extra_hosts:
+      # Allow host.docker.internal on Linux where it is not default
+      - "host.docker.internal:host-gateway"
+    # Hardening: non-root, read-only rootfs, no new capabilities
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+
+  grafana:
+    image: grafana/grafana-oss:10.4.2
+    container_name: velaflow-grafana
+    restart: unless-stopped
+    environment:
+      # Change these on first login — admin/admin is only for initial setup
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_INSTALL_PLUGINS: ""
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+
+volumes:
+  prometheus-data:
+  grafana-data:

@@ -1,0 +1,55 @@
+[Unit]
+Description=VelaFlow â€” Encrypted backup to Google Drive
+After=network-online.target
+Wants=network-online.target
+# Fail cleanly if envelope build/upload fails; the timer will retry on next schedule.
+OnFailure=
+
+[Service]
+Type=oneshot
+User=velaflow
+Group=velaflow
+WorkingDirectory=/opt/velaflow
+
+# Credentials are sourced from a 0600 root-owned file so service-account JSON
+# and VELAFLOW_BACKUP_KEY never leak through `systemctl show --all`.
+EnvironmentFile=/etc/velaflow/backup.env
+
+# The script uses the project venv's interpreter
+ExecStart=/opt/velaflow/.venv/bin/python /opt/velaflow/scripts/drive_backup.py
+
+# Hardening â€” the backup service has no need to touch anything beyond /opt/velaflow
+# plus a tiny writable tmpfs for the tarball buffer.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+# Cache / memory-dump hardening (R19):
+# No core dumps if the worker crashes while credentials are in RAM.
+# LimitMEMLOCK=infinity allows mlockall() so decrypted pages cannot be swapped.
+LimitCORE=0
+LimitMEMLOCK=infinity
+LockPersonality=true
+RestrictRealtime=true
+ProtectClock=true
+ProtectHostname=true
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateDevices=true
+PrivateTmp=true
+ReadWritePaths=/opt/velaflow/data /opt/velaflow/logs
+ReadOnlyPaths=/etc/velaflow
+
+# Quota: one backup cycle should not exceed 10 min on <50 GB datasets.
+TimeoutStartSec=600

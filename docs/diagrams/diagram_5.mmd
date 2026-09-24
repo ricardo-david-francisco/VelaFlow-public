@@ -1,0 +1,15 @@
+flowchart TD
+    NOTION["Notion API\n(all pages + databases)"]
+    TODOIST["Todoist API\n(all active tasks)"]
+
+    NOTION --> FETCH["Recursive block extraction\n(max depth 4)"]
+    FETCH --> CONVERT["Notion blocks → Markdown"]
+    TODOIST --> TASKS["Active tasks → Markdown list"]
+
+    CONVERT --> BUNDLE["Bundle into 7 source documents"]
+    TASKS --> BUNDLE
+
+    BUNDLE --> NLM["Push to NotebookLM\nvia Playwright browser automation"]
+    NLM --> REBUILD{"Rebuild mode?"}
+    REBUILD -->|"Yes"| DELETE["Delete old sources first"]
+    REBUILD -->|"No"| APPEND["Append to existing sources"]

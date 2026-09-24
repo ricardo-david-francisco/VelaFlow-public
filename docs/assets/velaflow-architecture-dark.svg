@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 642" width="960" height="642" font-family="'Brand Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace" role="img" aria-label="VelaFlow architecture: five sources feed a per-tenant Bronze, Silver and Gold pipeline on DuckDB with an optional LLM layer; results go out by email, Notion, WhatsApp, REST API and a web GUI.">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#818C92"/></marker></defs>
+<rect x="0.5" y="0.5" width="959" height="641" rx="14" fill="#0A0C0E" stroke="#232B30"/>
+<text x="35" y="40" font-size="12" font-weight="700" letter-spacing="1.5" fill="#CDF546">01  CONNECT</text>
+<rect x="48.0" y="52" width="160.0" height="50" rx="8" fill="#12171A" stroke="#2C363C"/>
+<text x="128.0" y="73" font-size="14" font-weight="700" text-anchor="middle" fill="#EDF1F2">Todoist</text>
+<text x="128.0" y="91" font-size="11.5" text-anchor="middle" fill="#8B969C">tasks</text>
+<rect x="224.0" y="52" width="160.0" height="50" rx="8" fill="#12171A" stroke="#2C363C"/>
+<text x="304.0" y="73" font-size="14" font-weight="700" text-anchor="middle" fill="#EDF1F2">Notion</text>
+<text x="304.0" y="91" font-size="11.5" text-anchor="middle" fill="#8B969C">pages + databases</text>
+<rect x="400.0" y="52" width="160.0" height="50" rx="8" fill="#12171A" stroke="#2C363C"/>
+<text x="480.0" y="73" font-size="14" font-weight="700" text-anchor="middle" fill="#EDF1F2">Google Calendar</text>
+<text x="480.0" y="91" font-size="11.5" text-anchor="middle" fill="#8B969C">events</text>
+<rect x="576.0" y="52" width="160.0" height="50" rx="8" fill="#12171A" stroke="#2C363C"/>
+<text x="656.0" y="73" font-size="14" font-weight="700" text-anchor="middle" fill="#EDF1F2">Gmail</text>
+<text x="656.0" y="91" font-size="11.5" text-anchor="middle" fill="#8B969C">IMAP triage</text>
+<rect x="752.0" y="52" width="160.0" height="50" rx="8" fill="#12171A" stroke="#2C363C"/>
+<text x="832.0" y="73" font-size="14" font-weight="700" text-anchor="middle" fill="#EDF1F2">Documents</text>
+<text x="832.0" y="91" font-size="11.5" text-anchor="middle" fill="#8B969C">for RAG</text>
+<line x1="128.0" y1="102" x2="128.0" y2="118" stroke="#818C92" stroke-width="1.6"/>
+<line x1="304.0" y1="102" x2="304.0" y2="118" stroke="#818C92" stroke-width="1.6"/>
+<line x1="480.0" y1="102" x2="480.0" y2="118" stroke="#818C92" stroke-width="1.6"/>
+<line x1="656.0" y1="102" x2="656.0" y2="118" stroke="#818C92" stroke-width="1.6"/>
+<line x1="832.0" y1="102" x2="832.0" y2="118" stroke="#818C92" stroke-width="1.6"/>
+<line x1="128.0" y1="118" x2="832.0" y2="118" stroke="#818C92" stroke-width="1.6"/>
+<line x1="480.0" y1="118" x2="480.0" y2="170" stroke="#818C92" stroke-width="1.6" marker-end="url(#ah)"/>
+<text x="35" y="156" font-size="12" font-weight="700" letter-spacing="1.5" fill="#CDF546">02  PROCESS · PER-TENANT MEDALLION PIPELINE ON DUCKDB</text>
+<rect x="35" y="174" width="200" height="96" rx="10" fill="#12171A"/>
+<rect x="35" y="174" width="200" height="20" rx="10" fill="#B8834A"/>
+<rect x="35" y="180" width="200" height="16" fill="#12171A"/>
+<rect x="35" y="174" width="200" height="96" rx="10" fill="none" stroke="#2C363C" stroke-width="1"/>
+<text x="135.0" y="212" font-size="15" font-weight="800" letter-spacing="2" text-anchor="middle" fill="#EDF1F2">BRONZE</text>
+<text x="135.0" y="236" font-size="12.5" text-anchor="middle" fill="#8B969C">raw API payloads</text>
+<text x="135.0" y="255" font-size="12.5" text-anchor="middle" fill="#8B969C">tenant-partitioned</text>
+<line x1="239.0" y1="222.0" x2="261.0" y2="222.0" stroke="#818C92" stroke-width="1.6" marker-end="url(#ah)"/>
+<rect x="265" y="174" width="200" height="96" rx="10" fill="#12171A"/>
+<rect x="265" y="174" width="200" height="20" rx="10" fill="#9AA5AD"/>
+<rect x="265" y="180" width="200" height="16" fill="#12171A"/>
+<rect x="265" y="174" width="200" height="96" rx="10" fill="none" stroke="#2C363C" stroke-width="1"/>
+<text x="365.0" y="212" font-size="15" font-weight="800" letter-spacing="2" text-anchor="middle" fill="#EDF1F2">SILVER</text>
+<text x="365.0" y="236" font-size="12.5" text-anchor="middle" fill="#8B969C">schema validation</text>
+<text x="365.0" y="255" font-size="12.5" text-anchor="middle" fill="#8B969C">dedup · PII masking</text>
+<line x1="469.0" y1="222.0" x2="491.0" y2="222.0" stroke="#818C92" stroke-width="1.6" marker-end="url(#ah)"/>
+<rect x="495" y="174" width="200" height="96" rx="10" fill="#12171A"/>
+<rect x="495" y="174" width="200" height="20" rx="10" fill="#D9B23A"/>
+<rect x="495" y="180" width="200" height="16" fill="#12171A"/>
+<rect x="495" y="174" width="200" height="96" rx="10" fill="none" stroke="#2C363C" stroke-width="1"/>
+<text x="595.0" y="212" font-size="15" font-weight="800" letter-spacing="2" text-anchor="middle" fill="#EDF1F2">GOLD</text>
+<text x="595.0" y="236" font-size="12.5" text-anchor="middle" fill="#8B969C">deterministic scoring</text>
+<text x="595.0" y="255" font-size="12.5" text-anchor="middle" fill="#8B969C">ranked briefing</text>
+<line x1="699.0" y1="222.0" x2="721.0" y2="222.0" stroke="#818C92" stroke-width="1.6" marker-end="url(#ah)"/>
+<rect x="725" y="174" width="200" height="96" rx="10" fill="#12171A"/>
+<rect x="725" y="174" width="200" height="96" rx="10" fill="none" stroke="#A78BFA" stroke-width="1.6" stroke-dasharray="6 5"/>
+<text x="825.0" y="212" font-size="15" font-weight="800" letter-spacing="2" text-anchor="middle" fill="#A78BFA">LLM LAYER</text>
+<text x="825.0" y="236" font-size="12.5" text-anchor="middle" fill="#8B969C">Gemini → Groq → Ollama</text>
+<text x="825.0" y="255" font-size="12.5" text-anchor="middle" fill="#8B969C">optional enrichment</text>
+<text x="480.0" y="296" font-size="12.5" text-anchor="middle" fill="#8B969C">Without an LLM, the Gold layer still produces the briefing.</text>
+<text x="35" y="330" font-size="12" font-weight="700" letter-spacing="1.5" fill="#CDF546">03  DELIVER</text>
+<line x1="480.0" y1="306" x2="480.0" y2="346" stroke="#818C92" stroke-width="1.6"/>
+<line x1="128.0" y1="346" x2="832.0" y2="346" stroke="#818C92" stroke-width="1.6"/>
+<line x1="128.0" y1="346" x2="128.0" y2="364" stroke="#818C92" stroke-width="1.6" marker-end="url(#ah)"/>
+<line x1="304.0" y1="346" x2="304.0" y2="364" stroke="#818C92" stroke-width="1.6" marker-end="url(#ah)"/>
+<line x1="480.0" y1="346" x2="480.0" y2="364" stroke="#818C92" stroke-width="1.6" marker-end="url(#ah)"/>
+<line x1="656.0" y1="346" x2="656.0" y2="364" stroke="#818C92" stroke-width="1.6" marker-end="url(#ah)"/>
+<line x1="832.0" y1="346" x2="832.0" y2="364" stroke="#818C92" stroke-width="1.6" marker-end="url(#ah)"/>
+<rect x="48.0" y="366" width="160.0" height="50" rx="8" fill="#12171A" stroke="#2C363C"/>
+<text x="128.0" y="387" font-size="14" font-weight="700" text-anchor="middle" fill="#EDF1F2">Email</text>
+<text x="128.0" y="405" font-size="11.5" text-anchor="middle" fill="#8B969C">daily briefing</text>
+<rect x="224.0" y="366" width="160.0" height="50" rx="8" fill="#12171A" stroke="#2C363C"/>
+<text x="304.0" y="387" font-size="14" font-weight="700" text-anchor="middle" fill="#EDF1F2">Notion</text>
+<text x="304.0" y="405" font-size="11.5" text-anchor="middle" fill="#8B969C">two-way sync</text>
+<rect x="400.0" y="366" width="160.0" height="50" rx="8" fill="#12171A" stroke="#2C363C"/>
+<text x="480.0" y="387" font-size="14" font-weight="700" text-anchor="middle" fill="#EDF1F2">WhatsApp</text>
+<text x="480.0" y="405" font-size="11.5" text-anchor="middle" fill="#8B969C">overdue alerts</text>
+<rect x="576.0" y="366" width="160.0" height="50" rx="8" fill="#12171A" stroke="#2C363C"/>
+<text x="656.0" y="387" font-size="14" font-weight="700" text-anchor="middle" fill="#EDF1F2">REST API</text>
+<text x="656.0" y="405" font-size="11.5" text-anchor="middle" fill="#8B969C">FastAPI · JWT</text>
+<rect x="752.0" y="366" width="160.0" height="50" rx="8" fill="#12171A" stroke="#2C363C"/>
+<text x="832.0" y="387" font-size="14" font-weight="700" text-anchor="middle" fill="#EDF1F2">Web GUI</text>
+<text x="832.0" y="405" font-size="11.5" text-anchor="middle" fill="#8B969C">Streamlit</text>
+<rect x="35" y="446" width="435" height="176" rx="10" fill="#12171A" stroke="#2C363C"/>
+<text x="55" y="476" font-size="12" font-weight="700" letter-spacing="1.5" fill="#CDF546">SECURITY</text>
+<rect x="55" y="495" width="8" height="8" fill="#CDF546"/>
+<text x="73" y="504" font-size="13" fill="#EDF1F2">AES-256-GCM per-tenant credential vault</text>
+<rect x="55" y="519" width="8" height="8" fill="#CDF546"/>
+<text x="73" y="528" font-size="13" fill="#EDF1F2">split-knowledge keys (HKDF-SHA256)</text>
+<rect x="55" y="543" width="8" height="8" fill="#CDF546"/>
+<text x="73" y="552" font-size="13" fill="#EDF1F2">HMAC-chained, tamper-evident audit log</text>
+<rect x="55" y="567" width="8" height="8" fill="#CDF546"/>
+<text x="73" y="576" font-size="13" fill="#EDF1F2">Google OAuth · JWT · RBAC · tier quotas</text>
+<rect x="55" y="591" width="8" height="8" fill="#CDF546"/>
+<text x="73" y="600" font-size="13" fill="#EDF1F2">HTTPS-only · systemd sandbox · mlockall</text>
+<rect x="490" y="446" width="435" height="176" rx="10" fill="#12171A" stroke="#2C363C"/>
+<text x="510" y="476" font-size="12" font-weight="700" letter-spacing="1.5" fill="#CDF546">PLATFORM</text>
+<rect x="510" y="495" width="8" height="8" fill="#CDF546"/>
+<text x="528" y="504" font-size="13" fill="#EDF1F2">FastAPI · per-tenant scheduler · Redis queue</text>
+<rect x="510" y="519" width="8" height="8" fill="#CDF546"/>
+<text x="528" y="528" font-size="13" fill="#EDF1F2">Terraform: Proxmox · Oracle Free · any VM</text>
+<rect x="510" y="543" width="8" height="8" fill="#CDF546"/>
+<text x="528" y="552" font-size="13" fill="#EDF1F2">Docker / Podman · Kubernetes · KEDA · HPA</text>
+<rect x="510" y="567" width="8" height="8" fill="#CDF546"/>
+<text x="528" y="576" font-size="13" fill="#EDF1F2">Prometheus · Grafana · Stripe billing</text>
+<rect x="510" y="591" width="8" height="8" fill="#CDF546"/>
+<text x="528" y="600" font-size="13" fill="#EDF1F2">528 tests · Snyk, Bandit, pip-audit: 0</text>
+</svg>

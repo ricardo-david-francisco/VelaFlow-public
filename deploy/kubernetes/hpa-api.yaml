@@ -1,0 +1,57 @@
+# VelaFlow Enterprise — Horizontal Pod Autoscaler for API
+#
+# Scales the API server based on CPU/memory utilisation.
+# KEDA handles queue-based worker scaling; HPA handles
+# request-based API scaling.
+#
+# Oracle Cloud Always-Free constraints:
+#   4 OCPUs (ARM A1), 24 GB RAM — budget for K3s:
+#     API: 1-4 replicas (250m-1000m CPU each)
+#     Workers: 0-10 via KEDA (250m-500m CPU each)
+#     Premium LLM: 0-3 via KEDA (1000m-4000m CPU each)
+#     Redis: 1 replica (100m CPU, 128 MB)
+#
+# At 1000 concurrent users the API tier scales to 4 replicas.
+# Workers scale independently on queue depth. This separation
+# ensures the website never goes down even under heavy pipeline load.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: velaflow-api-hpa
+  namespace: velaflow
+  labels:
+    app.kubernetes.io/name: velaflow-api
+    app.kubernetes.io/component: api
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: velaflow-api
+  minReplicas: 1
+  maxReplicas: 4
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

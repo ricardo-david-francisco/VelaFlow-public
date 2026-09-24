@@ -1,0 +1,11 @@
+[Unit]
+Description=VelaFlow — Daily planner timer (weekdays 07:00)
+
+[Timer]
+# Run Monday-Friday at 07:00 local time
+OnCalendar=Mon-Fri 07:00:00
+Persistent=true
+Unit=brain-daily.service
+
+[Install]
+WantedBy=timers.target

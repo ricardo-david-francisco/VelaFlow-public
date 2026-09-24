@@ -1,0 +1,92 @@
+#cloud-config
+# VelaFlow host bootstrap — portable across Proxmox LXC, generic VM, OCI A1.
+# This file is a *template*, rendered by the shared module. All $${...}
+# placeholders are substituted by Terraform before being written to the host.
+
+package_update: true
+package_upgrade: false
+packages:
+  - ca-certificates
+  - curl
+  - nginx
+  - podman
+
+write_files:
+  - path: /etc/velaflow/velaflow.env
+    permissions: "0640"
+    owner: root:velaflow
+    content: |
+      # Managed by Terraform — do not edit by hand.
+%{ for k, v in velaflow_env ~}
+      ${k}=${v}
+%{ endfor ~}
+
+  - path: /etc/systemd/system/velaflow.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=VelaFlow API (Podman container)
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=simple
+      Restart=always
+      RestartSec=5
+      EnvironmentFile=/etc/velaflow/velaflow.env
+      ExecStartPre=-/usr/bin/podman rm -f velaflow
+      ExecStart=/usr/bin/podman run --rm \
+        --name velaflow \
+        --env-file /etc/velaflow/velaflow.env \
+        -p 127.0.0.1:${api_port}:8765 \
+        -v ${data_dir}:/data \
+        ${velaflow_image}
+      ExecStop=/usr/bin/podman stop -t 10 velaflow
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/nginx/sites-available/velaflow.conf
+    permissions: "0644"
+    content: |
+      server {
+          listen ${public_port} ssl http2;
+          server_name _;
+
+          ssl_certificate     /etc/velaflow/tls/fullchain.pem;
+          ssl_certificate_key /etc/velaflow/tls/privkey.pem;
+          ssl_protocols       TLSv1.2 TLSv1.3;
+          ssl_ciphers         HIGH:!aNULL:!MD5;
+
+          add_header Strict-Transport-Security "max-age=31536000" always;
+          add_header X-Content-Type-Options nosniff always;
+          add_header X-Frame-Options DENY always;
+          add_header Referrer-Policy no-referrer always;
+
+          client_max_body_size 16m;
+
+          location / {
+              proxy_pass         http://127.0.0.1:${api_port};
+              proxy_set_header   Host              $host;
+              proxy_set_header   X-Real-IP         $remote_addr;
+              proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+              proxy_set_header   X-Forwarded-Proto https;
+              proxy_read_timeout 60s;
+          }
+      }
+
+runcmd:
+  - getent group velaflow || groupadd --system velaflow
+  - install -d -m 0750 -o root -g velaflow /etc/velaflow
+  - install -d -m 0750 -o root -g velaflow /etc/velaflow/tls
+  - install -d -m 0750 -o root -g velaflow ${data_dir}
+  - ln -sf /etc/nginx/sites-available/velaflow.conf /etc/nginx/sites-enabled/velaflow.conf
+  - rm -f /etc/nginx/sites-enabled/default
+  - systemctl daemon-reload
+  - systemctl enable --now velaflow.service
+  - |
+    if [ -s /etc/velaflow/tls/fullchain.pem ] && [ -s /etc/velaflow/tls/privkey.pem ]; then
+        systemctl enable --now nginx
+    else
+        echo "[velaflow] TLS material missing under /etc/velaflow/tls — nginx NOT started. Populate fullchain.pem + privkey.pem and run: systemctl enable --now nginx" >&2
+    fi

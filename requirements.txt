@@ -1,0 +1,14 @@
+﻿python-dotenv==1.1.0
+requests==2.33.1
+# Snyk R17: pin >=46.0.7 (improper cert validation, OOB write, data-auth CVEs in <46.0.7)
+cryptography==46.0.7
+google-api-python-client==2.194.0
+google-auth-oauthlib==1.3.1
+google-auth-httplib2==0.3.1
+google-auth>=2.0.0
+duckdb==1.5.2
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.10.0
+pytest==9.0.3
+pytest-cov==7.1.0

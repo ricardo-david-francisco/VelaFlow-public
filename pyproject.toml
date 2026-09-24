@@ -1,0 +1,109 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "velaflow"
+version = "2.0.0"
+description = "Multi-tenant AI productivity platform with on-prem medallion architecture, DuckDB engine, and n8n orchestration"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "VelaFlow Contributors"},
+]
+keywords = ["productivity", "todoist", "notion", "ai", "second-brain", "automation", "gemini",
+           "medallion-architecture", "multi-tenant", "fastapi", "duckdb", "n8n", "zero-trust"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Scheduling",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Framework :: FastAPI",
+]
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "requests>=2.33.0",
+]
+
+[project.optional-dependencies]
+google = [
+    "google-api-python-client>=2.100.0",
+    "google-auth-oauthlib>=1.1.0",
+    "google-auth-httplib2>=0.1.0",
+    "pyasn1>=0.6.3",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pygments>=2.20.0",
+]
+notebooklm = [
+    "notebooklm-py[browser]>=0.2.0",
+]
+enterprise = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.10.0",
+    "duckdb>=0.9.0",
+    "cryptography>=46.0.7",  # Snyk R17: CVEs in <46.0.7
+    "google-auth>=2.0.0",
+]
+billing = [
+    "stripe>=7.0.0",
+]
+backup = [
+    # Encrypted Google Drive backup (scripts/drive_backup.py).
+    # Kept as an optional extra so the core runtime does not pull Google
+    # API deps unless the operator opts into Drive-based backups.
+    "google-api-python-client>=2.100.0",
+    "google-auth>=2.0.0",
+    "google-auth-httplib2>=0.1.0",
+    "cryptography>=46.0.7",  # Snyk R17: CVEs in <46.0.7
+]
+gui = [
+    # Tier-gated self-service customisation GUI (src/brain/gui/app.py).
+    # Optional because the platform is fully usable via the REST API
+    # without a frontend.
+    "streamlit>=1.35.0",
+    "requests>=2.33.0",
+]
+rag = [
+    "duckdb>=0.9.0",
+]
+all = [
+    "velaflow[google,dev,enterprise,rag,billing,backup,gui,notebooklm]",
+]
+
+[project.scripts]
+brain = "brain.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+# -----------------------------------------------------------------------------
+# Bandit (SAST) — scope & policy
+# -----------------------------------------------------------------------------
+# Production runtime lives in src/. Bandit scans src/ at default severity
+# (including LOW) and must return ZERO findings with ZERO `# nosec` suppressions.
+# Operator/dev tooling lives in scripts/ and legitimately invokes system binaries
+# (pandoc, typst, apt, terraform, docker, systemctl). It is scanned separately at
+# MEDIUM+ severity and also passes with ZERO findings — the only LOW findings that
+# remain there (B404 "import subprocess" + B603 "subprocess_without_shell_equals_true")
+# are structurally unavoidable; we resolve every executable via shutil.which(),
+# never use shell=True, and pass list arguments only. That reviewed repo-wide
+# invariant is why `scripts/` is outside the default-severity scan and why there
+# are no inline `# nosec` annotations anywhere in the repository.
+# Tests and generated build artefacts are not shipped and are excluded.
+[tool.bandit]
+targets = ["src"]
+exclude_dirs = ["tests", "build", ".venv", "node_modules", "scripts"]

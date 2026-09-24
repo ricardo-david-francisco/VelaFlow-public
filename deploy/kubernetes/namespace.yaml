@@ -1,0 +1,8 @@
+# VelaFlow Enterprise — Kubernetes Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: velaflow
+  labels:
+    app.kubernetes.io/name: velaflow
+    app.kubernetes.io/part-of: velaflow-enterprise

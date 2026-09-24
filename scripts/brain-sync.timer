@@ -1,0 +1,11 @@
+[Unit]
+Description=VelaFlow — Notion sync timer (every 4 hours)
+
+[Timer]
+# Sync Todoist → Notion board every 4 hours, starting at 06:00
+OnCalendar=06,10,14,18,22:00:00
+Persistent=true
+Unit=brain-sync.service
+
+[Install]
+WantedBy=timers.target
