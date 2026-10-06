@@ -1,0 +1,10 @@
+[Unit]
+Description=VelaFlow — Weekend planner timer (Sat 08:00)
+
+[Timer]
+OnCalendar=Sat 08:00:00
+Persistent=true
+Unit=brain-weekend.service
+
+[Install]
+WantedBy=timers.target

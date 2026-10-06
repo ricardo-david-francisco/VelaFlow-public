@@ -1,0 +1,24 @@
+flowchart LR
+    subgraph CONTAINER["LXC Container (untrusted)"]
+        BRAIN["brain CLI"]
+        TOKEN["Proxy token\n$20 budget cap"]
+    end
+
+    subgraph VPS["Dedicated VPS (trusted)"]
+        PROXY["LiteLLM Proxy"]
+        KEYS["Real API keys\n(env vars, RAM only)"]
+    end
+
+    subgraph PROVIDERS["AI Providers"]
+        GOOGLE["Google AI"]
+        GROQ["Groq"]
+    end
+
+    BRAIN -->|"HTTPS + proxy token"| PROXY
+    PROXY -->|"HTTPS + real key"| GOOGLE
+    PROXY -->|"HTTPS + real key"| GROQ
+
+    ATTACKER["Attacker compromises LXC"]
+    ATTACKER -->|"steals proxy token"| TOKEN
+    ATTACKER -.->|"max damage: $20"| PROXY
+    ATTACKER -.->|"CANNOT access"| KEYS

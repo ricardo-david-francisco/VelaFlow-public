@@ -1,0 +1,47 @@
+[Unit]
+Description=VelaFlow — Daily planner + AI digest
+Documentation=https://github.com/yourrepo/brain/docs/deployment.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=@@BRAIN_USER@@
+Group=@@BRAIN_USER@@
+WorkingDirectory=@@BRAIN_HOME@@
+@@ENV_FILE_LINE@@
+
+ExecStart=@@VENV@@/bin/brain daily
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/brain /run/brain
+CapabilityBoundingSet=
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=true
+
+# Cache / memory-dump hardening (R19):
+# No core dumps if the worker crashes while credentials are in RAM.
+# LimitMEMLOCK=infinity allows mlockall() so decrypted pages cannot be swapped.
+LimitCORE=0
+LimitMEMLOCK=infinity
+LockPersonality=true
+RestrictRealtime=true
+ProtectClock=true
+ProtectHostname=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=brain-daily
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,14 @@
+tenancy_ocid        = "ocid1.tenancy.oc1..exampleuniqueID"
+compartment_ocid    = "ocid1.compartment.oc1..exampleuniqueID"
+region              = "eu-frankfurt-1"
+availability_domain = "Uocm:EU-FRANKFURT-1-AD-1"
+
+ssh_public_key = "ssh-ed25519 AAAA...replace..."
+
+allowed_admin_cidr = "0.0.0.0/0"
+
+ocpus     = 2
+memory_gb = 12
+
+velaflow_image = "ghcr.io/ricardo-david-francisco/velaflow:latest"
+data_dir       = "/var/lib/velaflow"

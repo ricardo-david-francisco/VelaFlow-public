@@ -1,0 +1,29 @@
+proxmox_api_url          = "https://pve.home.lan:8006/api2/json"
+proxmox_api_token_id     = "velaflow@pve!terraform"
+proxmox_api_token_secret = "00000000-0000-0000-0000-000000000000"
+proxmox_tls_insecure     = true
+
+proxmox_node = "pve"
+hostname     = "velaflow"
+ostemplate   = "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
+
+cores     = 2
+memory_mb = 2048
+swap_mb   = 512
+
+rootfs_storage = "local-lvm"
+rootfs_size    = "16G"
+
+network_bridge  = "vmbr0"
+network_ip      = "192.168.1.50/24"
+network_gateway = "192.168.1.1"
+
+ssh_public_key_path   = "~/.ssh/velaflow_ed25519.pub"
+container_ssh_host    = "192.168.1.50"
+ssh_user              = "root"
+ssh_private_key_path  = "~/.ssh/velaflow_ed25519"
+
+velaflow_image = "ghcr.io/ricardo-david-francisco/velaflow:latest"
+data_dir       = "/var/lib/velaflow"
+api_port       = 8765
+public_port    = 443

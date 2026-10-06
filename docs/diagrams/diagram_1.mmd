@@ -1,0 +1,9 @@
+flowchart TD
+    ENV_FILE["config/.env file\n(python-dotenv)"]
+    OS_ENV["OS environment variables\n(systemd EnvironmentFile)"]
+    DEFAULTS["Settings defaults\n(frozen dataclass)"]
+
+    ENV_FILE -->|"load_dotenv()"| MERGED["Merged environment"]
+    OS_ENV -->|"overrides .env"| MERGED
+    MERGED -->|"os.environ.get()"| CONFIG["Settings dataclass"]
+    DEFAULTS -->|"fallback values"| CONFIG

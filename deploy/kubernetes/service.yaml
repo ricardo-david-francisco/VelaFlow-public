@@ -1,0 +1,66 @@
+# VelaFlow Enterprise — Service + Ingress
+apiVersion: v1
+kind: Service
+metadata:
+  name: velaflow-api
+  namespace: velaflow
+  labels:
+    app.kubernetes.io/name: velaflow-api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: velaflow-api
+---
+# Redis for queue (production: use managed Redis / ElastiCache)
+apiVersion: v1
+kind: Service
+metadata:
+  name: velaflow-redis
+  namespace: velaflow
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app.kubernetes.io/name: velaflow-redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: velaflow-redis
+  namespace: velaflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: velaflow-redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: velaflow-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          command: ["redis-server", "--requirepass", "$(REDIS_PASSWORD)"]
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: velaflow-secrets
+                  key: REDIS_PASSWORD
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"

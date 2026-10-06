@@ -1,0 +1,11 @@
+# Terraform local state / provider cache — never commit
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+# Ignore user-supplied tfvars (only .example files are tracked)
+*.tfvars
+!*.tfvars.example

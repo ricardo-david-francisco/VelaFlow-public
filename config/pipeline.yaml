@@ -1,0 +1,164 @@
+# =============================================================================
+# VelaFlow Pipeline Configuration — On-Prem Medallion Architecture
+# =============================================================================
+# Declarative pipeline config for the self-hosted DuckDB + SQLite-backed
+# processing engine. VelaFlow does not depend on any managed lakehouse
+# (Databricks / Snowflake / BigQuery); all processing runs in-process in the
+# brain.engine module. See README section "DuckDB Analytical Engine —
+# Self-Hosted, Not Databricks" for the rationale.
+#
+# Conceptual mapping for engineers coming from managed platforms:
+#   Declarative bundle / job YAML  → this file
+#   Managed data catalog           → brain.catalog (SQLite-backed)
+#   Managed Spark/Photon runtime   → brain.engine (DuckDB-backed, in-process)
+#   Delta Live Tables / DLT stages → medallion processor stages
+#   Managed workflows / jobs       → n8n orchestration + systemd timers
+# =============================================================================
+
+pipeline:
+  name: velaflow-medallion
+  version: "2.0.0"
+  description: "On-prem medallion pipeline with DuckDB engine and local catalog"
+
+# ── Data Catalog (on-prem, SQLite-backed) ────────────────────────────────
+catalog:
+  namespace: velaflow
+  schemas:
+    bronze:
+      description: "Raw ingested data from external APIs (Todoist, Calendar, Gmail)"
+      tables:
+        - name: raw_tasks
+          format: json
+          description: "Raw task records with full API response"
+        - name: raw_events
+          format: json
+          description: "Raw calendar events"
+        - name: raw_emails
+          format: json
+          description: "Raw email alerts"
+    silver:
+      description: "Cleaned, deduplicated, PII-masked data"
+      tables:
+        - name: clean_tasks
+          format: json
+          description: "Validated and deduplicated tasks"
+        - name: clean_events
+          format: json
+          description: "Validated calendar events"
+        - name: clean_emails
+          format: json
+          description: "Validated email alerts"
+    gold:
+      description: "Scored, enriched, AI-ready datasets"
+      tables:
+        - name: scored_tasks
+          format: json
+          description: "Tasks with computed priority scores"
+        - name: daily_digest
+          format: json
+          description: "Generated daily digest documents"
+
+# ── Access Grants (RBAC on catalog objects) ───────────────────────
+grants:
+  free:
+    gold: [ SELECT ]
+  standard:
+    bronze: [ SELECT ]
+    silver: [ SELECT ]
+    gold: [ SELECT, INSERT ]
+  premium:
+    bronze: [ ALL ]
+    silver: [ ALL ]
+    gold: [ ALL ]
+  admin:
+    bronze: [ ALL ]
+    silver: [ ALL ]
+    gold: [ ALL ]
+
+# ── Pipeline Stages (executed by brain.engine.processor) ─────────────────
+stages:
+  bronze:
+    description: "Ingest raw data from external APIs"
+    sources:
+      - todoist
+      - calendar
+      - gmail
+    schedule: "0 */2 * * *" # Every 2 hours (n8n cron trigger)
+    n8n_webhook: "/api/v1/webhooks/pipeline"
+    transformations: []
+    output_schema: bronze
+
+  silver:
+    description: "Clean, deduplicate, validate, mask PII"
+    depends_on: [ bronze ]
+    schedule: null # Triggered by bronze completion
+    n8n_webhook: "/api/v1/webhooks/pipeline"
+    transformations:
+      - deduplicate_by_id
+      - validate_schema
+      - mask_pii
+      - compute_data_hash
+    output_schema: silver
+
+  gold:
+    description: "Score tasks, generate digest, prepare AI context"
+    depends_on: [ silver ]
+    schedule: null # Triggered by silver completion
+    n8n_webhook: "/api/v1/webhooks/digest"
+    transformations:
+      - score_tasks
+      - rank_by_score
+      - generate_daily_digest
+    output_schema: gold
+
+# ── Processing Engine (in-process DuckDB) ─────────────────────────────
+engine:
+  type: duckdb
+  config:
+    memory_limit: "512MB" # Safe for 8 GB host
+    threads: 2 # N95 has 4 threads, leave 2 for OS
+    db_path: "/opt/velaflow/data/velaflow.duckdb"
+    spill_to_disk: true
+
+# ── Resource Limits ────────────────────────────────────────────────────
+resources:
+  max_concurrent_pipelines: 2
+  max_records_per_batch: 10000
+  pipeline_timeout_seconds: 300
+
+# ── n8n Orchestration (visual workflow triggers) ──────────────────────
+orchestration:
+  engine: n8n
+  description: >
+    n8n is the primary orchestration layer. Every pipeline stage, delivery
+    channel, and tenant customization is controlled via n8n workflows. Users
+    fine-tune their VelaFlow by editing n8n workflows without writing code.
+  webhooks:
+    pipeline_trigger: "/api/v1/webhooks/pipeline"
+    digest_trigger: "/api/v1/webhooks/digest"
+    catalog_query: "/api/v1/webhooks/catalog"
+    llm_generate: "/api/v1/webhooks/llm"
+    tenant_provision: "/api/v1/webhooks/tenant"
+  delivery_channels:
+    - email # SMTP via n8n Gmail node
+    - whatsapp # CallMeBot via n8n HTTP node
+    - notion # Notion API via n8n HTTP node
+    - webhook # Custom webhook for integrations
+
+# ── Environments (dev / staging / prod target selection) ──────────────────────
+environments:
+  dev:
+    engine:
+      db_path: "./data/velaflow-dev.duckdb"
+      memory_limit: "256MB"
+    catalog_namespace: velaflow_dev
+  staging:
+    engine:
+      db_path: "/opt/velaflow/data/velaflow-staging.duckdb"
+      memory_limit: "512MB"
+    catalog_namespace: velaflow_staging
+  prod:
+    engine:
+      db_path: "/opt/velaflow/data/velaflow.duckdb"
+      memory_limit: "512MB"
+    catalog_namespace: velaflow

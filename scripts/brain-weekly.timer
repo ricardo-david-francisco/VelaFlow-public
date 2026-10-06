@@ -1,0 +1,10 @@
+[Unit]
+Description=VelaFlow — Weekly review timer (Sunday 08:00)
+
+[Timer]
+OnCalendar=Sun 08:00:00
+Persistent=true
+Unit=brain-weekly.service
+
+[Install]
+WantedBy=timers.target

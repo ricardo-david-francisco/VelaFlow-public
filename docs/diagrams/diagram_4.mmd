@@ -1,0 +1,26 @@
+sequenceDiagram
+    autonumber
+    participant CLI as brain notion-sync
+    participant Todoist as Todoist API
+    participant Notion as Notion API
+
+    CLI->>Todoist: GET tasks in planner sections
+    Todoist-->>CLI: Task[]
+
+    loop For each planner section
+        CLI->>Notion: Query DB for existing pages
+        Notion-->>CLI: Page[] (with todoist_id)
+        alt Task exists in Notion
+            CLI->>Notion: PATCH page (update)
+        else Task is new
+            CLI->>Notion: POST page (create)
+        end
+    end
+
+    CLI->>Notion: Query for Notion-only tasks
+    Notion-->>CLI: Page[] (no todoist_id)
+    loop For each Notion-only task
+        CLI->>Todoist: POST /tasks (create)
+        Todoist-->>CLI: New Task with id
+        CLI->>Notion: PATCH page (store todoist_id)
+    end

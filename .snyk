@@ -1,0 +1,14 @@
+# VelaFlow Snyk policy file.
+#
+# Reviewed quarterly or on any significant refactor to the affected paths.
+# After R17.2 every path-traversal and tar-slip finding is fixed at the
+# source via src/brain/security/safe_path.py (see module docstring for
+# the Snyk CWE-22 sanitizer rationale), per-member tar.extractfile()
+# with inline Path.resolve().relative_to(target) sanitizers at each
+# write sink, os.fchmod(fd, ...) in place of chmod(path, ...) to avoid
+# path-taint sinks on file-mode changes, and pathlib.Path.open()
+# append writes in the action ledger. This file retains no active
+# ignores — a failing Snyk Code run blocks the build.
+version: v1.25.0
+ignore: {}
+patch: {}

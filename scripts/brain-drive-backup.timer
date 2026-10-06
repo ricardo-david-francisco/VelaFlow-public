@@ -1,0 +1,23 @@
+[Unit]
+Description=VelaFlow — Drive backup timer (6x/day, 4h apart, 07:30 Europe/Lisbon base)
+
+[Timer]
+# Six backups per day, 4 hours apart, anchored at 07:30 Europe/Lisbon local time.
+# We pin the timezone explicitly so the schedule does not drift under DST
+# changes on the host — Europe/Lisbon is CET/WEST (UTC+0/+1).
+OnCalendar=*-*-* 03,07,11,15,19,23:30:00
+# The calendar above is interpreted in the timer's local time; on an LXC running
+# UTC this matches 03:30, 07:30, 11:30, 15:30, 19:30, 23:30 UTC. For
+# Europe/Lisbon wall-clock scheduling, set the LXC timezone with:
+#     timedatectl set-timezone Europe/Lisbon
+# (handled by scripts/install.sh on provisioning).
+Persistent=true
+# If the system was down during a scheduled run, execute once on boot instead
+# of skipping the window entirely.
+RandomizedDelaySec=120
+# Jitter up to 2 min to avoid thundering-herd against Drive API from fleets.
+AccuracySec=30s
+Unit=brain-drive-backup.service
+
+[Install]
+WantedBy=timers.target

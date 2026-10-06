@@ -1,0 +1,54 @@
+flowchart TB
+    subgraph PROXMOX["Proxmox Host"]
+        subgraph LXC["LXC Container · Debian 12 · Unprivileged"]
+            direction TB
+            TIMERS["systemd timers\n5 scheduled units\nPersistent=true"]
+            CLI["brain CLI\n(Python 3.11+ venv)"]
+            DOCKER_N8N["Docker · n8n\n(optional visual scheduler)"]
+            SECRETS["/etc/brain/secrets.env\nmode 0600 · proxy token only"]
+
+            TIMERS -->|"ExecStart"| CLI
+            SECRETS -.->|"EnvironmentFile"| CLI
+        end
+    end
+
+    subgraph VPS["Dedicated VPS — The Fortress"]
+        PROXY["LiteLLM Proxy\nReal AI API keys live here\nBudget caps · per-token audit"]
+    end
+
+    subgraph AI_PROVIDERS["AI Providers"]
+        GEMINI_PRO["Gemini 2.5 Pro"]
+        GEMINI_FLASH["Gemini 2.5 Flash"]
+        GEMINI_LITE["Gemini Flash-Lite"]
+        GROQ["Groq llama-3.3-70b"]
+    end
+
+    subgraph DATA_SERVICES["Data Services"]
+        TODOIST["Todoist REST API v1"]
+        NOTION["Notion API"]
+        GCAL["Google Calendar"]
+        GMAIL_IN["Gmail IMAP"]
+        NLM["Google NotebookLM"]
+    end
+
+    subgraph DELIVERY["Delivery Channels"]
+        GMAIL_OUT["Gmail SMTP"]
+        WHATSAPP["CallMeBot WhatsApp"]
+        NOTION_DASH["Notion Dashboard"]
+    end
+
+    CLI -->|"HTTPS · budget-capped token"| PROXY
+    PROXY -->|"real key (never leaves VPS)"| GEMINI_PRO
+    PROXY -.->|"fallback"| GEMINI_FLASH
+    PROXY -.->|"fallback"| GEMINI_LITE
+    PROXY -.->|"fallback"| GROQ
+
+    CLI <-->|"HTTPS Bearer"| TODOIST
+    CLI <-->|"HTTPS Bearer"| NOTION
+    CLI -->|"OAuth2"| GCAL
+    CLI -->|"IMAP4_SSL"| GMAIL_IN
+    CLI -->|"Playwright"| NLM
+
+    CLI -->|"SMTP/TLS"| GMAIL_OUT
+    CLI -->|"HTTPS GET"| WHATSAPP
+    CLI -->|"REST upsert"| NOTION_DASH
